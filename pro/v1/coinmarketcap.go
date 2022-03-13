@@ -81,6 +81,7 @@ type Platform struct {
 }
 type MapListing struct {
 	ID                  float64  `json:"id"`
+	Rank                float64  `json:"rank"`
 	Name                string   `json:"name"`
 	Symbol              string   `json:"symbol"`
 	Slug                string   `json:"slug"`
