@@ -28,12 +28,12 @@ Supports the CoinMarketCap API [Pro Version](https://pro.coinmarketcap.com/api/v
 
 ## Documentation
 
-[https://godoc.org/github.com/miguelmota/go-coinmarketcap](https://godoc.org/github.com/miguelmota/go-coinmarketcap)
+[https://godoc.org/github.com/ksred/go-coinmarketcap](https://godoc.org/github.com/ksred/go-coinmarketcap)
 
 ## Install
 
 ```bash
-go get -u github.com/miguelmota/go-coinmarketcap
+go get -u github.com/ksred/go-coinmarketcap
 ```
 
 ## Pro V1 (latest)
