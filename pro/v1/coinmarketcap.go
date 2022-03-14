@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 // Client the CoinMarketCap client
@@ -142,6 +143,32 @@ type Quote struct {
 	LastUpdated      string  `json:"last_updated"`
 }
 
+// OHLCV is the OHLCV structure
+type OHLCV struct {
+	ID     float64              `json:"id"`
+	Name   string               `json:"name"`
+	Symbol string               `json:"symbol"`
+	Quotes []*OHLVCQuoteSummary `json:"quotes"`
+}
+
+type OHLVCQuoteSummary struct {
+	TimeOpen  time.Time              `json:"time_open"`
+	TimeClose time.Time              `json:"time_close"`
+	TimeHigh  time.Time              `json:"time_high"`
+	TimeLow   time.Time              `json:"time_low"`
+	Quote     map[string]*OHLCVQuote `json:"quote"`
+}
+
+type OHLCVQuote struct {
+	Open      float64 `json:"open"`
+	High      float64 `json:"high"`
+	Low       float64 `json:"low"`
+	Close     float64 `json:"close"`
+	Volume    float64 `json:"volume"`
+	MarketCap float64 `json:"market_cap"`
+	Timestamp string  `json:"timestamp"`
+}
+
 // MarketMetrics is the market metrics structure
 type MarketMetrics struct {
 	BTCDominance           float64                        `json:"btc_dominance"`
@@ -208,6 +235,32 @@ type QuoteOptions struct {
 	Convert string
 	// Symbols suppots multiple tickers command separated. eg. "BTC,ETH,XRP"
 	Symbol string
+}
+
+// OHLVCOptions options
+type OHLVCOptions struct {
+	// ID supports one or more CMC IDs, 1,2,3
+	ID string `json:"id"`
+	// Slug supports one or more slugs, "bitcoin,ethereum"
+	Slug string `json:"slug"`
+	// Symbol supports one or more symbols, "BTC,ETH"
+	Symbol string `json:"symbol"`
+	// TimePeriod supports one of the following values: daily, hourly. Default daily
+	TimePeriod string `json:"time_period"`
+	// TimeStart Timestamp (Unix or ISO 8601) to start returning OHLCV time periods for. Only the date portion of the timestamp is used for daily OHLCV so it's recommended to send an ISO date format like "2018-09-19" without time.
+	TimeStart string `json:"time_start"`
+	// TimeEnd Timestamp (Unix or ISO 8601) to stop returning OHLCV time periods for (inclusive). Optional, if not passed we'll default to the current time. Only the date portion of the timestamp is used for daily OHLCV so it's recommended to send an ISO date format like "2018-09-19" without time.
+	TimeEnd string `json:"time_end"`
+	// Count number between 1 and 10,000. Default 10
+	Count int `json:"count"`
+	// Interval default daily, currently supported values are "hourly" "daily" "weekly" "monthly" "yearly" "1h" "2h" "3h" "4h" "6h" "12h" "1d" "2d" "3d" "7d" "14d" "15d" "30d" "60d" "90d" "365d"
+	Interval string `json:"interval"`
+	// Convert supports one or more currencies command separated. eg. "BRL,USD"
+	Convert string `json:"convert"`
+	// ConvertID Optionally calculate market quotes by CoinMarketCap ID instead of symbol. This option is identical to convert outside of ID format. Ex: convert_id=1,2781 would replace convert=BTC,USD in your query. This parameter cannot be used when convert is used.
+	ConvertID string `json:"convert_id"`
+	// SkipInvalid default false, Pass true to relax request validation rules. When requesting records on multiple cryptocurrencies an error is returned if any invalid cryptocurrencies are requested or a cryptocurrency does not have matching records in the requested timeframe. If set to true, invalid lookups will be skipped allowing valid cryptocurrencies to still be returned.
+	SkipInvalid bool `json:"skip_invalid"`
 }
 
 // ConvertOptions options
@@ -638,8 +691,8 @@ func (s *CryptocurrencyService) LatestMarketPairs(options *MarketPairOptions) (*
 	return marketPairs, nil
 }
 
-// HistoricalOHLCV NOT IMPLEMENTED
-func (s *CryptocurrencyService) HistoricalOHLCV() error {
+// HistoricalQuotes NOT IMPLEMENTED
+func (s *CryptocurrencyService) HistoricalQuotes() error {
 	return nil
 }
 
@@ -690,9 +743,114 @@ func (s *CryptocurrencyService) LatestQuotes(options *QuoteOptions) ([]*QuoteLat
 	return quotesLatest, nil
 }
 
-// HistoricalQuotes NOT IMPLEMENTED
-func (s *CryptocurrencyService) HistoricalQuotes() error {
-	return nil
+// HistoricalOHLCV gets historical quotes for each specified symbol. Use the "convert" option to return market values in multiple fiat and cryptocurrency conversions in the same call.
+func (s *CryptocurrencyService) HistoricalOHLCV(options *OHLVCOptions) (*OHLCV, error) {
+	var params []string
+	if options == nil {
+		options = new(OHLVCOptions)
+	}
+
+	if options.ID != "" {
+		params = append(params, fmt.Sprintf("id=%s", options.ID))
+	}
+
+	if options.Slug != "" {
+		params = append(params, fmt.Sprintf("slug=%s", options.Slug))
+	}
+
+	if options.Symbol != "" {
+		params = append(params, fmt.Sprintf("symbol=%s", options.Symbol))
+	}
+
+	if options.TimePeriod != "" {
+		params = append(params, fmt.Sprintf("time_period=%s", options.TimePeriod))
+	}
+
+	if options.TimeStart != "" {
+		params = append(params, fmt.Sprintf("time_start=%s", options.TimeStart))
+	}
+
+	if options.TimeEnd != "" {
+		params = append(params, fmt.Sprintf("time_end=%s", options.TimeEnd))
+	}
+
+	if options.Count != 0 {
+		params = append(params, fmt.Sprintf("count=%d", options.Count))
+	}
+
+	if options.Interval != "" {
+		params = append(params, fmt.Sprintf("interval=%s", options.Interval))
+	}
+
+	if options.Convert != "" {
+		params = append(params, fmt.Sprintf("convert=%s", options.Convert))
+	}
+
+	if options.ConvertID != "" {
+		params = append(params, fmt.Sprintf("convert_id=%s", options.ConvertID))
+	}
+
+	if options.SkipInvalid {
+		params = append(params, fmt.Sprintf("skip_invalid=%t", options.SkipInvalid))
+	}
+
+	url := fmt.Sprintf("%s/cryptocurrency/ohlcv/historical?%s", baseURL, strings.Join(params, "&"))
+
+	body, err := s.client.makeReq(url)
+	resp := new(Response)
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		return nil, fmt.Errorf("JSON Error: [%s]. Response body: [%s]", err.Error(), string(body))
+	}
+
+	ohlcvLatest := new(OHLCV)
+	ifcs, ok := resp.Data.(interface{})
+	if !ok {
+		return nil, ErrTypeAssertion
+	}
+
+	b, err := json.Marshal(ifcs)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(b, &ohlcvLatest)
+	if err != nil {
+		return nil, err
+	}
+
+	ohlcvArray := make(map[string]*OHLCVQuote)
+	for idx, ohlcvQuotes := range ohlcvLatest.Quotes {
+		ohlcvSummary := new(OHLVCQuoteSummary)
+		b, err := json.Marshal(ohlcvQuotes)
+		if err != nil {
+			return nil, err
+		}
+
+		err = json.Unmarshal(b, ohlcvSummary)
+		if err != nil {
+			return nil, err
+		}
+
+		fmt.Printf("ohlcvSummary %+v\n", ohlcvSummary)
+		for idxQuote, ohlcvQuote := range ohlcvQuotes.Quote {
+			b, err := json.Marshal(ohlcvQuote)
+			if err != nil {
+				return nil, err
+			}
+
+			err = json.Unmarshal(b, ohlcvQuote)
+			if err != nil {
+				return nil, err
+			}
+
+			ohlcvArray[idxQuote] = ohlcvQuote
+			fmt.Printf("ohlcvArray, ohlcvQuote %+v, %+v\n", ohlcvArray, ohlcvQuote)
+		}
+		ohlcvLatest.Quotes[idx] = ohlcvSummary
+	}
+
+	return ohlcvLatest, nil
 }
 
 // Info NOT IMPLEMENTED

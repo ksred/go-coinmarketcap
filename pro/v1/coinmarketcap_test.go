@@ -3,6 +3,7 @@ package coinmarketcap
 import (
 	"os"
 	"testing"
+	"time"
 )
 
 var proAPIKey = os.Getenv("CMC_PRO_API_KEY")
@@ -100,7 +101,24 @@ func TestCryptocurrencyLatestMarketPairs(t *testing.T) {
 }
 
 func TestCryptocurrencyHistoricalOHLCV(t *testing.T) {
-	// TODO
+	ohlcv, err := client.Cryptocurrency.HistoricalOHLCV(&OHLVCOptions{
+		Symbol: "BTC",
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	if ohlcv.Name != "Bitcoin" {
+		t.FailNow()
+	}
+	if len(ohlcv.Quotes) < 1 {
+		t.FailNow()
+	}
+	if ohlcv.Quotes[0].TimeOpen == (time.Time{}) {
+		t.FailNow()
+	}
+	if ohlcv.Quotes[0].Quote["USD"].Close == 0 {
+		t.FailNow()
+	}
 }
 
 func TestCryptocurrencyLatestQuotes(t *testing.T) {
